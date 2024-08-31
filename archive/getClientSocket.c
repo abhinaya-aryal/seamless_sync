@@ -1,4 +1,5 @@
 #include "../include/UDPListen.h"
+#include "../include/UDPSend.h"
 #include "../include/customDataTypes.h"
 #include "../src/headerConfig.c"
 #include <sys/socket.h>
@@ -14,7 +15,9 @@
  * char* ip (ip address of the server we wish to connect)
  *
  * Returns:
- *  returns the pointer to the client socket
+ *  returns the pointer of socket info
+ *  if the status is 0 it means that the socket for the connection is received
+ *  if the status is -1 it means something went wrong.
  *
  * Side Effects:
  *  NONE
@@ -28,6 +31,7 @@
  *
  * Notes:
  *  check out the client.c file in archive for further insight
+ *  check out customDataTypes
  */
 
 int *getClientSocket(char *ip) {

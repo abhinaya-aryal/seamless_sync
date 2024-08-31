@@ -1,4 +1,6 @@
+#include "../include/UDPListen.h"
 #include "../include/UDPSend.h"
+#include "../include/customDataTypes.h"
 #include "../src/headerConfig.c"
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -6,14 +8,21 @@
 /**
  * Function: getServerSocket
  * ---------------
- * Takes in the ip address of the client we wish to connect, generates to
- *
+ * Takes in the ip address of the client we wish to connect, generates the
+ * connection socket and give it back to you.
+ * Under the hood it creates two socket one for the server and another for the
+ * connection, the socket of server is used to listen to the incoming conneciton
+ * connection requests are received across multiple interfaces
+ * finally when the connection is setup, new connection socket is created which
+ * is then returned.
  *
  * Parameters:
  * char* ip(takes in the ip address of the client we wish to connect to)
  *
  * Returns:
- *  returns the pointer to the TCP socket used for communication
+ *  returns the pointer of socket info
+ *  if the status is 0 it means that the socket for the connection is received
+ *  if the status is -1 it means something went wrong.
  *
  * Side Effects:
  *  NONE
@@ -27,6 +36,7 @@
  *
  * Notes:
  *  check out server.c file in archive for further insight.
+ *  check out customDataTypes
  */
 int *getServerSocket(char *ip) {
   struct sockaddr_in servAddr, clientAddr;
