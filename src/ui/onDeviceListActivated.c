@@ -1,16 +1,22 @@
-#include "../../archive/getClientSocket.c"
-#include "../../archive/getServerSocket.c"
-#include "../../archive/receiveFile.c"
-#include "../../archive/sendFile.c"
 #include "createButton.h"
 #include "createVerticalBox.h"
 #include "createWrappedLabel.h"
-#include "glib-object.h"
-#include "glib.h"
+#include "getClientSocket.h"
+#include "getServerSocket.h"
+#include "gtk/gtk.h"
+#include "receiveFile.h"
+#include "sendFile.h"
 
-int *connSocket = NULL; // global socket file descriptor
+int *connSocket = NULL;
 GtkWindow *window;
 GtkWidget *vbox;
+GtkWidget *scrolled_window;
+
+void scroll_to_bottom() {
+  GtkAdjustment *adj =
+      gtk_scrolled_window_get_vadjustment(GTK_SCROLLED_WINDOW(scrolled_window));
+  gtk_adjustment_set_value(adj, gtk_adjustment_get_upper(adj));
+}
 
 void add_message(const gchar *message_text, gboolean is_user_message) {
   GtkWidget *msg = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 20);
@@ -31,29 +37,33 @@ void add_message(const gchar *message_text, gboolean is_user_message) {
     gtk_widget_set_halign(msg, GTK_ALIGN_START);
     gtk_widget_set_margin_start(msg, 10);
   }
+  scroll_to_bottom();
 }
 
 static void on_open_file_response(GObject *source_object, GAsyncResult *res,
                                   gpointer user_data) {
+  char fileMsg[256];
+  memset(fileMsg, '\0', sizeof(fileMsg));
+  strncpy(fileMsg, "/file", 5);
+  send(*connSocket, fileMsg, sizeof(fileMsg), 0);
   g_autoptr(GFile) file = NULL;
   g_autofree char *path = NULL;
 
   file = gtk_file_dialog_open_finish(GTK_FILE_DIALOG(source_object), res, NULL);
   if (file != NULL) {
     path = g_file_get_path(file);
-    send(*connSocket, "/file", strlen("/file"), 0);
-    g_print("sending file\n");
+    g_print("[+] Sending file\n");
     sendFile(connSocket, path);
-    add_message(g_strconcat(path, " is sent.", NULL), TRUE);
+    add_message(g_strconcat(path, " file is sent.", NULL), TRUE);
   } else {
-    g_print("No file selected\n");
+    g_print("[-] No file selected\n");
   }
 }
 
 static void on_file_button_clicked(GtkButton *button, gpointer data) {
   GtkWindow *window =
       GTK_WINDOW(gtk_widget_get_ancestor(GTK_WIDGET(button), GTK_TYPE_WINDOW));
-  g_print("file button clicked\n");
+  g_print("[.] File button clicked\n");
   GtkFileDialog *dialog = gtk_file_dialog_new();
   gtk_file_dialog_open(dialog, window, NULL, on_open_file_response, NULL);
 }
@@ -88,9 +98,15 @@ static void create_message_area(GObject *source_object, GAsyncResult *res,
   gtk_widget_set_margin_bottom(msgArea, 10);
   gtk_window_set_child(window, msgArea);
 
+  scrolled_window = gtk_scrolled_window_new();
+  gtk_widget_set_vexpand(scrolled_window, TRUE);
+  gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled_window),
+                                 GTK_POLICY_NEVER, GTK_POLICY_ALWAYS);
+  gtk_box_append(GTK_BOX(msgArea), scrolled_window);
+
   vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
   gtk_widget_set_vexpand(vbox, TRUE);
-  gtk_box_append(GTK_BOX(msgArea), vbox);
+  gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(scrolled_window), vbox);
 
   GtkWidget *hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 20);
   gtk_box_append(GTK_BOX(msgArea), hbox);
@@ -117,22 +133,31 @@ gboolean update_ui_with_message(gpointer data) {
 }
 
 void *receive_messages(gpointer data) {
-  char buffer[256];
+  char receiveBuffer[256];
+  gboolean expecting_file = FALSE;
 
   while (1) {
-    memset(buffer, '\0', sizeof(buffer));
-    if (recv(*connSocket, buffer, sizeof(buffer), 0) <= 0) {
-      printf("[-] Connection closed or error occurred\n");
+    memset(receiveBuffer, '\0', sizeof(receiveBuffer));
+    ssize_t recv_len =
+        recv(*connSocket, receiveBuffer, sizeof(receiveBuffer), 0);
+
+    if (recv_len <= 0) {
+      if (recv_len == 0) {
+        printf("[-] Connection closed by peer\n");
+      } else {
+        perror("[-] recv error");
+      }
       break;
     }
-    if (g_strcmp0(buffer, "/file") == 0) {
-      g_print("receiving file\n");
+
+    if (strncmp(receiveBuffer, "/file", 5) == 0) {
       char file_name[100];
       receiveFile(connSocket, file_name);
       g_idle_add(update_ui_with_message,
-                 g_strconcat(file_name, " is received.", NULL));
+                 g_strconcat(file_name, " file is received.", NULL));
     } else {
-      g_idle_add(update_ui_with_message, g_strdup(buffer));
+      // g_print("Hello world error");
+      g_idle_add(update_ui_with_message, g_strdup(receiveBuffer));
     }
   }
   return NULL;
@@ -146,6 +171,7 @@ static void client_thread_func(GTask *task, gpointer source_object,
   }
   if (connSocket && connSocket >= 0) {
     g_thread_new("receive-messages", receive_messages, NULL);
+    // receive_messages(NULL);
   }
 }
 
@@ -157,6 +183,7 @@ static void server_thread_func(GTask *task, gpointer source_object,
   }
   if (connSocket && connSocket >= 0) {
     g_thread_new("receive-messages", receive_messages, NULL);
+    // receive_messages(NULL);
   }
 }
 
@@ -169,11 +196,11 @@ void button_callback(GtkButton *button, gpointer data) {
   if (g_strcmp0(button_label, "Connect as Server") == 0) {
     g_task_run_in_thread(task, server_thread_func);
     g_object_unref(task);
-    g_print("Connect as server clicked\n");
+    g_print("[.] Connect as server clicked\n");
   } else if (g_strcmp0(button_label, "Connect as Receiver") == 0) {
     g_task_run_in_thread(task, client_thread_func);
     g_object_unref(task);
-    g_print("Connect as receiver clicked\n");
+    g_print("[.] Connect as receiver clicked\n");
   }
 
   GtkWidget *vertical_box_for_spinner = create_vertical_box(0, 0, 0, 0, 0);
@@ -192,7 +219,7 @@ void button_callback(GtkButton *button, gpointer data) {
 
 void on_device_list_activated(GtkListBox *listbox, GtkListBoxRow *row,
                               gpointer user_data) {
-  if (!GTK_IS_WIDGET(row)) // Ensure row is a valid widget
+  if (!GTK_IS_WIDGET(row))
     return;
 
   window =

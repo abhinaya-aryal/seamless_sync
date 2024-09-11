@@ -1,8 +1,4 @@
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <time.h>
+#include "./headerConfig.c"
 
 #define AES_BLOCK_SIZE 16
 /*
@@ -131,7 +127,7 @@ void keyExpansion(const uint8_t *key, uint32_t *expandedKeys) {
     temp = expandedKeys[i - 1];
     if (i % 4 == 0) {
       /*
-      if the word to be genereted is the first word for the new set of keys then
+      if the word to be generated is the first word for the new set of keys then
       the previous word (the last word of the previous set of keys) has to go
       through a g block transformation which includes
       - Rotate word
@@ -280,7 +276,7 @@ uint8_t gmul_14(uint8_t val) { return gmul_2(gmul_2(gmul_2(val) ^ val) ^ val); }
 /*
 Mix columns:
 Here we multiply the column vector of the state matrix with the following
-matrix: [combiation matrix]
+matrix: [combination matrix]
 2 | 3 | 1 | 1
 1 | 2 | 3 | 1
 1 | 1 | 2 | 3
@@ -321,7 +317,7 @@ void mixColumns(uint8_t *state) {
   uint8_t column[4];
   // iterating over the 4 columns
   for (int i = 0; i < 4; i++) {
-    // interating over rows of each column to create the column matrix
+    // iterating over rows of each column to create the column matrix
     for (int j = 0; j < 4; j++) {
       column[j] = state[(j * 4) + i];
     }
@@ -524,21 +520,21 @@ void decryptFile(const char *inputPath, const char *outputPath,
   free(buffer);
 }
 
-int main() {
-  uint8_t key[16];
-  generatingAesKey(key, sizeof(key));
-
-  printf("AES KEY IS: \n");
-  for (int i = 0; i < 16; i++) {
-    printf("%u\t", key[i]);
-  }
-  printf("\n");
-  /**/
-  const char *inputFilePath = "./example.txt";
-  const char *encryptedFilePath = "./encrypted.enc";
-  const char *decryptedFilePath = "./decrypted.txt";
-
-  encryptFile(inputFilePath, encryptedFilePath, key);
-  decryptFile(encryptedFilePath, decryptedFilePath, key);
-  return 0;
-}
+// int main() {
+//   uint8_t key[16];
+//   generatingAesKey(key, sizeof(key));
+//
+//   printf("AES KEY IS: \n");
+//   for (int i = 0; i < 16; i++) {
+//     printf("%u\t", key[i]);
+//   }
+//   printf("\n");
+//   /**/
+//   const char *inputFilePath = "./example.txt";
+//   const char *encryptedFilePath = "./encrypted.enc";
+//   const char *decryptedFilePath = "./decrypted.txt";
+//
+//   encryptFile(inputFilePath, encryptedFilePath, key);
+//   decryptFile(encryptedFilePath, decryptedFilePath, key);
+//   return 0;
+// }

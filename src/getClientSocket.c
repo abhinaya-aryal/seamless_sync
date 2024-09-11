@@ -1,9 +1,6 @@
 #include "../include/UDPListen.h"
-#include "../include/UDPSend.h"
 #include "../include/customDataTypes.h"
 #include "../src/headerConfig.c"
-#include <sys/socket.h>
-#include <unistd.h>
 
 /**
  * Function: getclientSocket
@@ -51,7 +48,7 @@ int *getClientSocket(char *ip) {
 
   if (setsockopt(*clientSocket, SOL_SOCKET, SO_REUSEADDR, &(int){1},
                  sizeof(int)) < 0) {
-    printf("[-] Error while setting socket reuseable");
+    printf("[-] Error while setting socket reusable");
     close(*clientSocket);
     free(clientSocket);
     return NULL;
@@ -69,7 +66,7 @@ int *getClientSocket(char *ip) {
     return NULL;
   }
 
-  printf("[+] Connected to ther server\n");
+  printf("[+] Connected to the server\n");
   printf("\n");
 
   return clientSocket;
